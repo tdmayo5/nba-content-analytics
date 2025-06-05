@@ -1,0 +1,136 @@
+version: '3.8'
+
+services:
+  # PostgreSQL Database (Local BigQuery replacement)
+  postgres:
+    image: postgres:13
+    container_name: nba_postgres
+    environment:
+      POSTGRES_USER: airflow
+      POSTGRES_PASSWORD: airflow
+      POSTGRES_DB: airflow
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./scripts/init_db.sql:/docker-entrypoint-initdb.d/init_db.sql
+    ports:
+      - "5432:5432"
+    networks:
+      - nba_network
+    restart: unless-stopped
+
+  # Redis (for Airflow Celery)
+  redis:
+    image: redis:7-alpine
+    container_name: nba_redis
+    networks:
+      - nba_network
+    restart: unless-stopped
+
+  # Airflow Webserver
+  airflow-webserver:
+    build: 
+      context: .
+      dockerfile: docker/airflow/Dockerfile
+    container_name: nba_airflow_webserver
+    command: webserver
+    depends_on:
+      - postgres
+      - redis
+    environment:
+      AIRFLOW__CORE__EXECUTOR: CeleryExecutor
+      AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://airflow:airflow@postgres:5432/airflow
+      AIRFLOW__CELERY__RESULT_BACKEND: redis://redis:6379/0
+      AIRFLOW__CELERY__BROKER_URL: redis://redis:6379/0
+      AIRFLOW__CORE__DAGS_ARE_PAUSED_AT_CREATION: false
+      AIRFLOW__CORE__LOAD_EXAMPLES: false
+      AIRFLOW__WEBSERVER__EXPOSE_CONFIG: true
+    volumes:
+      - ./airflow/dags:/opt/airflow/dags
+      - ./airflow/plugins:/opt/airflow/plugins
+      - ./data:/opt/airflow/data
+      - ./dbt:/opt/airflow/dbt
+      - ./data_generators:/opt/airflow/data_generators
+    ports:
+      - "8080:8080"
+    networks:
+      - nba_network
+    restart: unless-stopped
+
+  # Airflow Scheduler
+  airflow-scheduler:
+    build:
+      context: .
+      dockerfile: docker/airflow/Dockerfile
+    container_name: nba_airflow_scheduler
+    command: scheduler
+    depends_on:
+      - postgres
+      - redis
+    environment:
+      AIRFLOW__CORE__EXECUTOR: CeleryExecutor
+      AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://airflow:airflow@postgres:5432/airflow
+      AIRFLOW__CELERY__RESULT_BACKEND: redis://redis:6379/0
+      AIRFLOW__CELERY__BROKER_URL: redis://redis:6379/0
+    volumes:
+      - ./airflow/dags:/opt/airflow/dags
+      - ./airflow/plugins:/opt/airflow/plugins
+      - ./data:/opt/airflow/data
+      - ./dbt:/opt/airflow/dbt
+      - ./data_generators:/opt/airflow/data_generators
+    networks:
+      - nba_network
+    restart: unless-stopped
+
+  # Airflow Worker
+  airflow-worker:
+    build:
+      context: .
+      dockerfile: docker/airflow/Dockerfile
+    container_name: nba_airflow_worker
+    command: celery worker
+    depends_on:
+      - postgres
+      - redis
+    environment:
+      AIRFLOW__CORE__EXECUTOR: CeleryExecutor
+      AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://airflow:airflow@postgres:5432/airflow
+      AIRFLOW__CELERY__RESULT_BACKEND: redis://redis:6379/0
+      AIRFLOW__CELERY__BROKER_URL: redis://redis:6379/0
+    volumes:
+      - ./airflow/dags:/opt/airflow/dags
+      - ./airflow/plugins:/opt/airflow/plugins
+      - ./data:/opt/airflow/data
+      - ./dbt:/opt/airflow/dbt
+      - ./data_generators:/opt/airflow/data_generators
+    networks:
+      - nba_network
+    restart: unless-stopped
+
+  # Streamlit Dashboard
+  dashboard:
+    build:
+      context: .
+      dockerfile: docker/dashboard/Dockerfile
+    container_name: nba_dashboard
+    depends_on:
+      - postgres
+    volumes:
+      - ./dashboard:/app
+      - ./data:/app/data
+    ports:
+      - "8501:8501"
+    environment:
+      - POSTGRES_HOST=postgres
+      - POSTGRES_USER=airflow
+      - POSTGRES_PASSWORD=airflow
+      - POSTGRES_DB=nba_analytics
+    networks:
+      - nba_network
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
+
+networks:
+  nba_network:
+    driver: bridge
