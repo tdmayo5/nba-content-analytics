@@ -1,0 +1,45 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "Start Docker Environment", 
+            "type": "shell",
+            "command": "docker-compose up -d",
+            "group": "build",
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "focus": false,
+                "panel": "shared"
+            }
+        },
+        {
+            "label": "Stop Docker Environment",
+            "type": "shell", 
+            "command": "docker-compose down",
+            "group": "build"
+        },
+        {
+            "label": "Test NBA API",
+            "type": "shell",
+            "command": "python data_generators/nba_api.py",
+            "group": "test",
+            "presentation": {
+                "echo": true,
+                "reveal": "always"
+            }
+        },
+        {
+            "label": "Run dbt Models",
+            "type": "shell",
+            "command": "cd dbt && dbt run --target dev",
+            "group": "build"
+        },
+        {
+            "label": "Test dbt Models", 
+            "type": "shell",
+            "command": "cd dbt && dbt test --target dev",
+            "group": "test"
+        }
+    ]
+}
