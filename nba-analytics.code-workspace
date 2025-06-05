@@ -1,0 +1,56 @@
+{
+    "folders": [
+        {
+            "name": "🏀 NBA Analytics Root",
+            "path": "."
+        },
+        {
+            "name": "📊 Airflow DAGs",
+            "path": "./airflow"
+        },
+        {
+            "name": "🔄 dbt Models", 
+            "path": "./dbt"
+        },
+        {
+            "name": "📈 Dashboard",
+            "path": "./dashboard"
+        },
+        {
+            "name": "🔧 Data Generators",
+            "path": "./data_generators"
+        }
+    ],
+    "extensions": {
+        "recommendations": [
+            "ms-python.python",
+            "ms-azuretools.vscode-docker",
+            "mtxr.sqltools",
+            "mtxr.sqltools-driver-pg",
+            "innoverio.vscode-dbt-power-user",
+            "eamodio.gitlens",
+            "rangav.vscode-thunder-client"
+        ]
+    },
+    "settings": {
+        "python.defaultInterpreterPath": "./venv/bin/python",
+        "python.formatting.provider": "black",
+        "python.linting.enabled": true,
+        "python.linting.pylintEnabled": true,
+        "files.associations": {
+            "*.sql": "sql",
+            "*.yml": "yaml"
+        },
+        "sqltools.connections": [
+            {
+                "name": "Local PostgreSQL",
+                "driver": "PostgreSQL",
+                "server": "localhost",
+                "port": 5432,
+                "database": "nba_analytics",
+                "username": "airflow",
+                "password": "airflow"
+            }
+        ]
+    }
+}
