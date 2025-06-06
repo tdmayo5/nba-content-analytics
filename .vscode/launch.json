@@ -1,0 +1,60 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Debug Airflow DAG",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${workspaceFolder}/airflow/dags/nba_daily_pipeline.py",
+            "env": {
+                "AIRFLOW__CORE__DAGS_FOLDER": "${workspaceFolder}/airflow/dags",
+                "PYTHONPATH": "${workspaceFolder}:${workspaceFolder}/airflow:${workspaceFolder}/data_generators"
+            },
+            "console": "integratedTerminal",
+            "justMyCode": true
+        },
+        {
+            "name": "Test Data Generator",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${workspaceFolder}/data_generators/nba_api.py",
+            "console": "integratedTerminal",
+            "justMyCode": true
+        },
+        {
+            "name": "Debug Social Simulator",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${workspaceFolder}/data_generators/social_simulator.py",
+            "console": "integratedTerminal",
+            "justMyCode": true
+        },
+        {
+            "name": "Debug TV Ratings Simulator",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${workspaceFolder}/data_generators/ratings_simulator.py",
+            "console": "integratedTerminal",
+            "justMyCode": true
+        },
+        {
+            "name": "Debug Streamlit Dashboard",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${workspaceFolder}/dashboard/nba_analytics_dashboard.py",
+            "console": "integratedTerminal",
+            "args": ["--server.port=8501", "--server.address=0.0.0.0"],
+            "justMyCode": true
+        },
+        {
+            "name": "Debug dbt Models",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${workspaceFolder}/venv/bin/dbt",
+            "args": ["run", "--target", "dev"],
+            "cwd": "${workspaceFolder}/dbt",
+            "console": "integratedTerminal",
+            "justMyCode": false
+        }
+    ]
+}

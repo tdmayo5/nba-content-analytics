@@ -1,0 +1,32 @@
+{
+  "python.defaultInterpreterPath": "./venv/bin/python",
+  "python.analysis.extraPaths": [
+    "./airflow",
+    "./data_generators",
+    "./venv/lib/python3.9/site-packages"
+  ],
+  "python.analysis.autoImportCompletions": true,
+  "python.analysis.stubPath": "./typings",
+  "python.linting.enabled": true,
+  "python.linting.pylintEnabled": true,
+  "python.linting.pylintArgs": [
+    "--disable=import-error,missing-docstring,too-few-public-methods",
+    "--init-hook=import sys; sys.path.append('./venv/lib/python3.9/site-packages')"
+  ],
+  "files.associations": {
+    "*.sql": "sql",
+    "*.yml": "yaml",
+    "*.yaml": "yaml"
+  },
+  "sqltools.connections": [
+    {
+      "name": "NBA Analytics Local",
+      "driver": "PostgreSQL",
+      "server": "localhost",
+      "port": 5432,
+      "database": "nba_analytics",
+      "username": "airflow",
+      "password": "airflow"
+    }
+  ]
+}
