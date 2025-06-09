@@ -1,7 +1,7 @@
 version: '3.8'
 
 services:
-  # PostgreSQL Database (Local BigQuery replacement)
+  # PostgreSQL Database
   postgres:
     image: postgres:13
     container_name: nba_postgres
@@ -17,33 +17,74 @@ services:
     networks:
       - nba_network
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U airflow"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
 
-  # Redis (for Airflow Celery)
+  # Redis for Airflow
   redis:
     image: redis:7-alpine
     container_name: nba_redis
     networks:
       - nba_network
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  # Airflow Database Initialization
+  airflow-init:
+    build:
+      context: .
+      dockerfile: docker/airflow/Dockerfile
+    container_name: nba_airflow_init
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment: &airflow-common-env
+      AIRFLOW__CORE__EXECUTOR: LocalExecutor
+      AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://airflow:airflow@postgres:5432/airflow
+      AIRFLOW__CORE__DAGS_ARE_PAUSED_AT_CREATION: 'false'
+      AIRFLOW__CORE__LOAD_EXAMPLES: 'false'
+      AIRFLOW__WEBSERVER__EXPOSE_CONFIG: 'true'
+      AIRFLOW__CORE__FERNET_KEY: 'ZmDfcTF7_60GrrY167zsiPd67pEvs0aGOv2oasOM1Pg='
+      _AIRFLOW_DB_UPGRADE: 'true'
+      _AIRFLOW_WWW_USER_CREATE: 'true'
+      _AIRFLOW_WWW_USER_USERNAME: admin
+      _AIRFLOW_WWW_USER_PASSWORD: admin
+    volumes:
+      - ./airflow/dags:/opt/airflow/dags
+      - ./airflow/plugins:/opt/airflow/plugins
+      - ./data:/opt/airflow/data
+      - ./dbt:/opt/airflow/dbt
+      - ./data_generators:/opt/airflow/data_generators
+    command: |
+      bash -c "
+        airflow db init &&
+        airflow db upgrade &&
+        airflow users create --username admin --password admin --firstname Admin --lastname User --role Admin --email admin@example.com
+      "
+    networks:
+      - nba_network
 
   # Airflow Webserver
   airflow-webserver:
-    build: 
+    build:
       context: .
       dockerfile: docker/airflow/Dockerfile
     container_name: nba_airflow_webserver
     command: webserver
     depends_on:
-      - postgres
-      - redis
+      airflow-init:
+        condition: service_completed_successfully
     environment:
-      AIRFLOW__CORE__EXECUTOR: CeleryExecutor
-      AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://airflow:airflow@postgres:5432/airflow
-      AIRFLOW__CELERY__RESULT_BACKEND: redis://redis:6379/0
-      AIRFLOW__CELERY__BROKER_URL: redis://redis:6379/0
-      AIRFLOW__CORE__DAGS_ARE_PAUSED_AT_CREATION: false
-      AIRFLOW__CORE__LOAD_EXAMPLES: false
-      AIRFLOW__WEBSERVER__EXPOSE_CONFIG: true
+      <<: *airflow-common-env
     volumes:
       - ./airflow/dags:/opt/airflow/dags
       - ./airflow/plugins:/opt/airflow/plugins
@@ -55,6 +96,12 @@ services:
     networks:
       - nba_network
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "--fail", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
 
   # Airflow Scheduler
   airflow-scheduler:
@@ -64,66 +111,16 @@ services:
     container_name: nba_airflow_scheduler
     command: scheduler
     depends_on:
-      - postgres
-      - redis
+      airflow-init:
+        condition: service_completed_successfully
     environment:
-      AIRFLOW__CORE__EXECUTOR: CeleryExecutor
-      AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://airflow:airflow@postgres:5432/airflow
-      AIRFLOW__CELERY__RESULT_BACKEND: redis://redis:6379/0
-      AIRFLOW__CELERY__BROKER_URL: redis://redis:6379/0
+      <<: *airflow-common-env
     volumes:
       - ./airflow/dags:/opt/airflow/dags
       - ./airflow/plugins:/opt/airflow/plugins
       - ./data:/opt/airflow/data
       - ./dbt:/opt/airflow/dbt
       - ./data_generators:/opt/airflow/data_generators
-    networks:
-      - nba_network
-    restart: unless-stopped
-
-  # Airflow Worker
-  airflow-worker:
-    build:
-      context: .
-      dockerfile: docker/airflow/Dockerfile
-    container_name: nba_airflow_worker
-    command: celery worker
-    depends_on:
-      - postgres
-      - redis
-    environment:
-      AIRFLOW__CORE__EXECUTOR: CeleryExecutor
-      AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://airflow:airflow@postgres:5432/airflow
-      AIRFLOW__CELERY__RESULT_BACKEND: redis://redis:6379/0
-      AIRFLOW__CELERY__BROKER_URL: redis://redis:6379/0
-    volumes:
-      - ./airflow/dags:/opt/airflow/dags
-      - ./airflow/plugins:/opt/airflow/plugins
-      - ./data:/opt/airflow/data
-      - ./dbt:/opt/airflow/dbt
-      - ./data_generators:/opt/airflow/data_generators
-    networks:
-      - nba_network
-    restart: unless-stopped
-
-  # Streamlit Dashboard
-  dashboard:
-    build:
-      context: .
-      dockerfile: docker/dashboard/Dockerfile
-    container_name: nba_dashboard
-    depends_on:
-      - postgres
-    volumes:
-      - ./dashboard:/app
-      - ./data:/app/data
-    ports:
-      - "8501:8501"
-    environment:
-      - POSTGRES_HOST=postgres
-      - POSTGRES_USER=airflow
-      - POSTGRES_PASSWORD=airflow
-      - POSTGRES_DB=nba_analytics
     networks:
       - nba_network
     restart: unless-stopped
